@@ -1,5 +1,5 @@
 const CopyWebpackPlugin = require("copy-webpack-plugin");
-const ZipPlugin = require('zip-webpack-plugin')
+const CrxPlugin = require('webpack-crx')
 const path = require("path");
 
 // Generate pages object
@@ -41,9 +41,11 @@ if (process.env.NODE_ENV !== 'production') {
 // 生产环境打包dist为zip
 if (process.env.NODE_ENV === 'production') {
   plugins.push(
-    new ZipPlugin({
-      path: path.resolve("dist"),
-      filename: 'dist.zip',
+    new CrxPlugin({
+      key: path.resolve('key.pem'),
+      src: path.resolve('dist'),
+      dest: path.resolve('build'),
+      name: 'chrome-ext'
     })
   )
 }

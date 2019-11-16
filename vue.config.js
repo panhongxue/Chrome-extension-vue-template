@@ -1,6 +1,12 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin")
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const CrxPlugin = require('webpack-crx')
-const path = require("path");
+const path = require("path")
+
+const PATH = {
+  output: path.resolve('dist'),
+  build: path.resolve('build')
+}
 
 // Generate pages object
 const pagesObj = {};
@@ -9,43 +15,52 @@ const chromeName = ["popup", "options"];
 chromeName.forEach(name => {
   pagesObj[name] = {
     entry: `src/${name}/index.js`,
-    template: "public/index.html",
+    template: `src/${name}/index.html`,
     filename: `${name}.html`
   };
 });
 
 // 生成manifest文件
-const manifest =
-  process.env.NODE_ENV === "production" ? {
-    from: path.resolve("src/manifest.production.json"),
-    to: `${path.resolve("dist")}/manifest.json`
-  } : {
-    from: path.resolve("src/manifest.development.json"),
-    to: `${path.resolve("dist")}/manifest.json`
-  };
+const manifest = process.env.NODE_ENV === "production" ? {
+  from: 'src/manifest.prod.json',
+  to: 'manifest.json'
+} : {
+  from: 'src/manifest.dev.json',
+  to: 'manifest.json'
+}
+
+const copyImgs = {
+  from: 'src/img/',
+  to: `img/`
+}
 
 const plugins = [
-  CopyWebpackPlugin([manifest])
+  CopyWebpackPlugin([manifest, copyImgs])
 ]
 
-// 开发环境将热加载文件复制到dist文件夹
+// 开发环境将热加载文件复制到output文件夹
 if (process.env.NODE_ENV !== 'production') {
   plugins.push(
     CopyWebpackPlugin([{
-      from: path.resolve("src/utils/hot-reload.js"),
-      to: path.resolve("dist")
+      from: 'src/utils/hot-reload.js',
+      to: PATH.output
     }])
   )
 }
 
-// 生产环境打包dist为zip
+// 生产环境打包output为crx
 if (process.env.NODE_ENV === 'production') {
+  plugins.push(
+    new CleanWebpackPlugin({
+      cleanOnceBeforeBuildPatterns: [PATH.build]
+    })
+  )
   plugins.push(
     new CrxPlugin({
       key: path.resolve('key.pem'),
-      src: path.resolve('dist'),
-      dest: path.resolve('build'),
-      name: 'chrome-ext'
+      src: PATH.output,
+      dest: PATH.build,
+      name: 'fulllink-tester'
     })
   )
 }
@@ -70,7 +85,6 @@ module.exports = {
       // chunkFilename: 'css/[name].css'
     }
   },
-
 
   chainWebpack: config => {
     // 处理字体文件名，去除hash值

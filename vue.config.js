@@ -1,7 +1,9 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin")
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const CrxPlugin = require('webpack-crx')
-const path = require("path")
+const path = require('path')
+const pkg = require('./package.json')
+
 
 const PATH = {
   output: path.resolve('dist'),
@@ -9,24 +11,34 @@ const PATH = {
 }
 
 // Generate pages object
-const pagesObj = {};
-const chromeName = ["popup", "options"];
+const pagesObj = {}
+const chromeExtPages = ["popup", "options"]
 
-chromeName.forEach(name => {
+chromeExtPages.forEach(name => {
   pagesObj[name] = {
     entry: `src/${name}/index.js`,
     template: `src/${name}/index.html`,
     filename: `${name}.html`
-  };
-});
+  }
+})
 
 // 生成manifest文件
-const manifest = process.env.NODE_ENV === "production" ? {
-  from: 'src/manifest.prod.json',
-  to: 'manifest.json'
-} : {
-  from: 'src/manifest.dev.json',
-  to: 'manifest.json'
+const manifest = {
+  from: 'src/manifest.json',
+  to: 'manifest.json',
+  transform(content) {
+    if (process.env.NODE_ENV === "production") {
+      return content
+    }
+
+    // 开发环境，注入插件刷新hot-reload.js
+    let manifest = JSON.parse(content.toString())
+    if (manifest.background && manifest.background.scripts) {
+      manifest.background.scripts.unshift('hot-reload.js')
+    }
+
+    return JSON.stringify(manifest)
+  }
 }
 
 const copyImgs = {
@@ -35,39 +47,43 @@ const copyImgs = {
 }
 
 const plugins = [
-  CopyWebpackPlugin([manifest, copyImgs])
+  new CopyWebpackPlugin([manifest, copyImgs])
 ]
 
 // 开发环境将热加载文件复制到output文件夹
 if (process.env.NODE_ENV !== 'production') {
   plugins.push(
-    CopyWebpackPlugin([{
+    new CopyWebpackPlugin([{
       from: 'src/utils/hot-reload.js',
       to: PATH.output
     }])
   )
 }
 
-// 生产环境打包output为crx
-if (process.env.NODE_ENV === 'production') {
-  plugins.push(
-    new CleanWebpackPlugin({
-      cleanOnceBeforeBuildPatterns: [PATH.build]
-    })
-  )
+// 生产环境或debug模式打包output为crx
+const debugMode = process.argv[5] === 'debug'
+if (process.env.NODE_ENV === 'production' || debugMode) {
+  // debug模式不清理crx目录
+  if (!debugMode) {
+    plugins.push(
+      new CleanWebpackPlugin({
+        cleanOnceBeforeBuildPatterns: [PATH.build]
+      })
+    )
+  }
   plugins.push(
     new CrxPlugin({
-      key: path.resolve('key.pem'),
+      // key: path.resolve('key.pem'),
       src: PATH.output,
       dest: PATH.build,
-      name: 'fulllink-tester'
+      name: pkg.name + (debugMode ? '.debug' : '')
     })
   )
 }
 
 module.exports = {
   pages: pagesObj,
-  // // 生产环境是否生成 sourceMap 文件
+  // 生产环境是否生成 sourceMap 文件
   productionSourceMap: false,
 
   configureWebpack: {
@@ -87,6 +103,9 @@ module.exports = {
   },
 
   chainWebpack: config => {
+    // 关闭chunk-vendors
+    config.optimization.splitChunks(false)
+
     // 处理字体文件名，去除hash值
     const fontsRule = config.module.rule('fonts')
 
@@ -108,4 +127,4 @@ module.exports = {
         .use(require('webpack-bundle-analyzer').BundleAnalyzerPlugin)
     }
   }
-};
+}

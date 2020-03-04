@@ -1,0 +1,42 @@
+{
+  "version": "0.0.1",
+  "name": "chrome-ext-vue",
+
+  "description": "a chrome extension with vue-cli3",
+  "icons": {
+    "16": "img/16.png",
+    "48": "img/48.png",
+    "128": "img/128.png"
+  },
+
+  "manifest_version": 2,
+  "options_page": "options.html",
+
+  "background": {
+    "scripts": []
+  },
+  "browser_action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [{
+    "matches": [
+      "*://*.baidu.com/*"
+    ],
+    "css": [
+      "css/content.css"
+    ],
+    "js": [
+      "js/content.js"
+    ],
+    "run_at": "document_end"
+  }],
+
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "web_accessible_resources": [
+    "fonts/*"
+  ],
+  "permissions": [
+    "<all_urls>",
+    "tabs"
+  ]
+}
